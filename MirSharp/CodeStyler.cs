@@ -12,7 +12,6 @@ namespace MirSharp
 {
     internal class CodeStyler
     {   
-        string aa;
         static string fileToAnalys;
         public CodeStyler() { }
         public CodeStyler(string path)
