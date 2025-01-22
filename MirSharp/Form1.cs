@@ -16,19 +16,18 @@ namespace MirSharp
 {
     public partial class Form1 : Form
     {
-        List<string> files_names = new List<string>() { };
-        string pathInTextBox1;
+        List<string> files_names = new List<string>() { }; // Список для хранения путей к файлам типа .cs
+        string pathInTextBox1; // Строка-путь в textbox1
+        string result = "";
         public Form1()
         {
             InitializeComponent();
             // Включаем поддержку перетаскивания
             button1.AllowDrop = true;
-
-            // Обработка события, когда файл перетаскивается над TextBox
             button1.DragEnter += new DragEventHandler(button1_DragEnter);
-
-            // Обработка события, когда файл отпускается над TextBox
             button1.DragDrop += new DragEventHandler(button1_DragDrop);
+
+            panel1.Controls.Add(textBox2);
 
         }
 
@@ -38,13 +37,21 @@ namespace MirSharp
         }
 
         //Вспомогательные методы для проверки
-        // Проверяем, что путь ведёт к .cs файлу
+        /// <summary>
+        /// Проверяем, что путь ведёт к .cs файлу
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
         private bool IsCsFile(string path)
         {
             return File.Exists(path) && Path.GetExtension(path).Equals(".cs", StringComparison.OrdinalIgnoreCase);
         }
 
-        // Проверяем, что путь ведёт к папке с проектом (содержит .csproj или .sln файл)
+        /// <summary>
+        /// Проверяем, что путь ведёт к папке с проектом (содержит .csproj или .sln файл)
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
         private bool IsProjectFolder(string path)
         {
             if (Directory.Exists(path))
@@ -55,6 +62,11 @@ namespace MirSharp
             }
             return false;
         }
+        /// <summary>
+        /// Проверяем, что путь ведёт к архиву
+        /// </summary>
+        /// <param name="path"></param>
+        /// <returns></returns>
         private bool IsArchive(string path)
         {
             return File.Exists(path) && Path.GetExtension(path).Equals(".zip", StringComparison.OrdinalIgnoreCase);
@@ -62,6 +74,7 @@ namespace MirSharp
         private void ProcessFolder(string folderPath)
         {
             // Добавляем все .cs файлы из папки
+
             string[] csFiles = Directory.GetFiles(folderPath, "*.cs", SearchOption.AllDirectories);
             files_names.AddRange(csFiles);
 
@@ -82,7 +95,6 @@ namespace MirSharp
             {
                 string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
 
-                // Проверяем, что все элементы — это .cs файлы, папки с проектами или архивы
                 bool allValid = true;
                 foreach (string path in files)
                 {
@@ -95,22 +107,21 @@ namespace MirSharp
 
                 if (allValid)
                 {
-                    e.Effect = DragDropEffects.Copy; // Разрешаем перетаскивание
+                    e.Effect = DragDropEffects.Copy; 
                 }
                 else
                 {
-                    e.Effect = DragDropEffects.None; // Запрещаем перетаскивание
+                    e.Effect = DragDropEffects.None; 
                 }
             }
             else
             {
-                e.Effect = DragDropEffects.None; // Запрещаем перетаскивание
+                e.Effect = DragDropEffects.None; 
             }
         }
 
         private void button1_DragDrop(object sender, DragEventArgs e)
         {
-            // Получаем массив путей к файлам
             string[] file = (string[])e.Data.GetData(DataFormats.FileDrop);
             foreach (string s in file)
             {
@@ -128,14 +139,10 @@ namespace MirSharp
                 }
                 else if (IsArchive(s))
                 {
-                    // Если это архив, распаковываем его и проверяем содержимое
                     string extractPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
                     ZipFile.ExtractToDirectory(s, extractPath);
 
-                    // Ищем .cs файлы и проекты в распакованной папке
                     ProcessFolder(extractPath);
-
-                    // Удаляем временную папку после использования (опционально)
                     Directory.Delete(extractPath, true);
                 }
             }
@@ -154,22 +161,17 @@ namespace MirSharp
 
         private void button1_Click(object sender, EventArgs e)
         {
-            // Создаем экземпляр OpenFileDialog
             OpenFileDialog openFileDialog = new OpenFileDialog();
 
-            // Настраиваем диалог
             openFileDialog.InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
             openFileDialog.Filter = "C# файлы (*.cs)|*.cs|C# проекты (*.csproj;*.sln)|*.csproj;*.sln|Архивные файлы (*.zip)|*.zip|Все файлы (*.*)|*.*";
-            openFileDialog.Multiselect = true; // Разрешаем выбор нескольких файлов
-            openFileDialog.Title = "Выберите файлы"; // Заголовок диалога
+            openFileDialog.Multiselect = true;
+            openFileDialog.Title = "Выберите файлы"; 
 
-            // Открываем диалог и проверяем, нажал ли пользователь "ОК"
             if (openFileDialog.ShowDialog() == DialogResult.OK)
             {
-                // Получаем массив выбранных файлов
                 string[] selectedFiles = openFileDialog.FileNames;
 
-                // Выводим пути к выбранным файлам (например, в MessageBox)
                 foreach (string file in selectedFiles)
                 {
                     if (IsCsFile(file))
@@ -186,21 +188,14 @@ namespace MirSharp
                     }
                     else if (IsArchive(file))
                     {
-                        // Если это архив, распаковываем его и проверяем содержимое
                         string extractPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
                         ZipFile.ExtractToDirectory(file, extractPath);
 
-                        // Ищем .cs файлы и проекты в распакованной папке
                         ProcessFolder(extractPath);
-
-                        // Удаляем временную папку после использования (опционально)
                         Directory.Delete(extractPath, true);
                     }
                 }
 
-                // Если нужно отобразить пути в TextBox или ListBox:
-                // listBoxFiles.Items.AddRange(selectedFiles);
-                // textBoxFiles.Text = string.Join(Environment.NewLine, selectedFiles);
             }
         }
 
@@ -225,14 +220,10 @@ namespace MirSharp
                     }
                     else if (IsArchive(path))
                     {
-                        // Если это архив, распаковываем его и проверяем содержимое
                         string extractPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
                         ZipFile.ExtractToDirectory(path, extractPath);
 
-                        // Ищем .cs файлы и проекты в распакованной папке
                         ProcessFolder(extractPath);
-
-                        // Удаляем временную папку после использования (опционально)
                         Directory.Delete(extractPath, true);
                     }
                     textBox1.Clear();
@@ -245,8 +236,37 @@ namespace MirSharp
             }
 
             //Основная часть кода для проверки на кодстайл
-            
+            foreach (string file in files_names)
+            {
+                
+                CodeStyler codeStyler = new CodeStyler(file);
+                result += codeStyler.ErrorAnalyser();
+                result += "\n";
+                result += codeStyler.StyleAnalyser();
+                
+            }
+            panel1.Visible = true;
 
+            textBox2.Text = result;
+            files_names.Clear();
+            
+        }
+        
+        private void panel1_Paint(object sender, PaintEventArgs e)
+        {
+            
+        }
+
+        private void textBox2_TextChanged(object sender, EventArgs e)
+        {
+            
+            
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            panel1.Visible=false;
+            textBox2.Clear();
         }
     }
 }

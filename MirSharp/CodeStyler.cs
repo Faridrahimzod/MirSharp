@@ -10,16 +10,24 @@ using System.Threading.Tasks;
 
 namespace MirSharp
 {
+    /// <summary>
+    /// Вспомогательный класс для проверки кода в файле на корректное срабатывание и кодстайл
+    /// </summary>
     internal class CodeStyler
     {   
-        static string fileToAnalys;
+
+        string fileToAnalys;
         public CodeStyler() { }
         public CodeStyler(string path)
         {
-            fileToAnalys = path;
+            fileToAnalys = Path.GetFullPath(path);
         }
         
-        internal static string ErrorAnalyser()
+        /// <summary>
+        /// Проверяет на корректное компилирование кода в файле
+        /// </summary>
+        /// <returns>Отчёт о проверке</returns>
+        internal string ErrorAnalyser()
         {
             if (!File.Exists(fileToAnalys))
             {
@@ -28,7 +36,7 @@ namespace MirSharp
             else
             {
                 string code = File.ReadAllText(fileToAnalys);
-                string isError = null;
+                string isError = "";
                 SyntaxTree tree = CSharpSyntaxTree.ParseText(code);
                 var root = tree.GetRoot();
                 var diagnostics = tree.GetDiagnostics();
@@ -40,13 +48,20 @@ namespace MirSharp
                         isError += $"- {diagnostic.GetMessage()} в строке {diagnostic.Location.GetLineSpan().StartLinePosition.Line + 1}\n";
                     }
                 }
+                
+                tree = null;
                 return isError;
 
             }
         }
 
-        internal string StyleAnalyser(string fileToAnalys)
+        /// <summary>
+        /// Проверяет кодстайл кода ф файле, согласно стандартам Microsoft
+        /// </summary>
+        /// <returns>Отчёт о проверке</returns>
+        internal string StyleAnalyser()
         {
+            string ans = "";
             if (!File.Exists(fileToAnalys))
             {
                 return "Введён неправильный путь к файлу";
@@ -56,7 +71,14 @@ namespace MirSharp
                 string code = File.ReadAllText(fileToAnalys);
                 SyntaxTree tree = CSharpSyntaxTree.ParseText(code);
                 var root = tree.GetRoot();
-                return CheckCodeStyle(root);
+                if (CheckCodeStyle(root).Length > 0) 
+                {
+                    ans += $"Ошибки стиля кода в файле {fileToAnalys}\n";
+                }
+                ans += CheckCodeStyle(root);
+
+                tree = null;
+                return ans;
             }
         }
 
@@ -68,25 +90,36 @@ namespace MirSharp
 
 
 
-
+        /// <summary>
+        /// Вспомогательный статический метод для проверки соответсию кодстайла
+        /// </summary>
+        /// <param name="root"></param>
+        /// <returns>Отчёт о проверке</returns>
         static string CheckCodeStyle(SyntaxNode root)
         {
             string ans = "";
-            // Проверка отступов
+
             ans += CheckIndentation(root);
+            ans += "\n";
 
-            // Проверка наименования переменных и методов
             ans += CheckNamingConventions(root);
+            ans += "\n";
 
-            // Проверка комментариев
             ans += CheckComments(root);
+            ans += "\n";
+            
             return ans;
         }
-
+        /// <summary>
+        /// Вспомогательный статический метод для проверки отсупов
+        /// </summary>
+        /// <param name="root"></param>
+        /// <returns></returns>
         private static string CheckIndentation(SyntaxNode root)
         {
+            
             string ans = "";
-            // Проверяем, что каждая строка кода начинается с правильного отступа
+
             var lines = root.ToString().Split('\n');
             for (int i = 0; i < lines.Length; i++)
             {
@@ -96,27 +129,32 @@ namespace MirSharp
                     int expectedIndent = GetExpectedIndentLevel(line);
                     int actualIndent = line.Length - line.TrimStart().Length;
 
-                    if (actualIndent != expectedIndent * 4) // 4 пробела на уровень отступа
+                    if (actualIndent != expectedIndent * 4) 
                     {
                         ans += ($"Ошибка отступа в строке {i + 1}: ожидается {expectedIndent * 4} пробелов, найдено {actualIndent}\n");
                     }
                 }
+                ans += "\n";
             }
             return ans;
         }
 
         private static int GetExpectedIndentLevel(string line)
         {
-            // Простая логика для определения уровня отступа
             if (line.Contains("{")) return 1;
             if (line.Contains("}")) return 0;
-            return 1; // По умолчанию
+            return 1; 
         }
 
+        /// <summary>
+        /// Вспомогательный статический метод для проверки правильного наименования методов и переменных
+        /// </summary>
+        /// <param name="root"></param>
+        /// <returns>Отчёт о проверке</returns>
         private static string CheckNamingConventions(SyntaxNode root)
         {
             string ans = "";
-            // Проверка наименования переменных и методов
+
             var methods = root.DescendantNodes().OfType<MethodDeclarationSyntax>();
             foreach (var method in methods)
             {
@@ -137,10 +175,15 @@ namespace MirSharp
             return ans;
         }
 
+        /// <summary>
+        /// Вспомгательный статический метод для проверки правильности написания комментариев
+        /// </summary>
+        /// <param name="root"></param>
+        /// <returns>Отчёт о проверке</returns>
         private static string CheckComments(SyntaxNode root)
         {
             string ans = "";
-            // Проверка наличия комментариев для публичных методов
+
             var methods = root.DescendantNodes().OfType<MethodDeclarationSyntax>();
             foreach (var method in methods)
             {
