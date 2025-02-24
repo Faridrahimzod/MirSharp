@@ -29,6 +29,12 @@ namespace MirSharp
 
             panel1.Controls.Add(textBox2);
 
+            textBox2.Multiline = true;
+            textBox2.ScrollBars = ScrollBars.Vertical;
+
+            // Подписка на событие MouseWheel
+            textBox2.MouseWheel += new MouseEventHandler(textBox2_MouseWheel);
+
         }
 
         private void label1_Click(object sender, EventArgs e)
@@ -240,15 +246,16 @@ namespace MirSharp
             {
                 
                 CodeStyler codeStyler = new CodeStyler(file);
-                result += codeStyler.ErrorAnalyser();
+                result += codeStyler.ErrorAnalyzer();
                 result += "\n";
-                result += codeStyler.StyleAnalyser();
+                result += codeStyler.StyleAnalyzer();
                 
             }
             panel1.Visible = true;
 
             textBox2.Text = result;
             files_names.Clear();
+            result = string.Empty;
             
         }
         
@@ -257,16 +264,28 @@ namespace MirSharp
             
         }
 
+        private void textBox2_MouseWheel(object sender, MouseEventArgs e)
+        {
+            if (e.Delta > 0)
+            {
+                SendKeys.Send("{UP}"); // Прокрутка вверх
+            }
+            else if (e.Delta < 0)
+            {
+                SendKeys.Send("{DOWN}"); // Прокрутка вниз
+            }
+        }
         private void textBox2_TextChanged(object sender, EventArgs e)
         {
             
-            
+
         }
 
         private void button3_Click(object sender, EventArgs e)
         {
-            panel1.Visible=false;
             textBox2.Clear();
+            panel1.Visible=false;
+            
         }
     }
 }

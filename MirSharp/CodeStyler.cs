@@ -1,201 +1,283 @@
 ﻿using System;
 using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.CodeAnalysis.Text;
 
 namespace MirSharp
 {
     /// <summary>
-    /// Вспомогательный класс для проверки кода в файле на корректное срабатывание и кодстайл
+    /// Класс для анализа кода на ошибки и соответствие стилю Microsoft.
     /// </summary>
     internal class CodeStyler
-    {   
+    {
+        private readonly string fileToAnalyze;
 
-        string fileToAnalys;
-        public CodeStyler() { }
         public CodeStyler(string path)
         {
-            fileToAnalys = Path.GetFullPath(path);
+            fileToAnalyze = Path.GetFullPath(path);
         }
-        
+
         /// <summary>
-        /// Проверяет на корректное компилирование кода в файле
+        /// Проверяет, компилируется ли код без ошибок.
         /// </summary>
-        /// <returns>Отчёт о проверке</returns>
-        internal string ErrorAnalyser()
+        public string ErrorAnalyzer()
         {
-            if (!File.Exists(fileToAnalys))
+            if (!File.Exists(fileToAnalyze))
             {
-                return "Введён неправильный путь к файлу";
+                return "Ошибка: указанный файл не существует.";
             }
-            else
+
+            string code = File.ReadAllText(fileToAnalyze);
+
+            // Парсим код с явным указанием версии языка
+            var parseOptions = new CSharpParseOptions(LanguageVersion.Latest);
+            SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(code, parseOptions);
+
+            // Добавляем все необходимые системные сборки
+            var systemAssemblyPath = typeof(object).Assembly.Location;
+            var runtimeAssemblyPath = typeof(System.Runtime.GCSettings).Assembly.Location;
+            var consoleAssemblyPath = typeof(Console).Assembly.Location;
+
+            var references = new[]
             {
-                string code = File.ReadAllText(fileToAnalys);
-                string isError = "";
-                SyntaxTree tree = CSharpSyntaxTree.ParseText(code);
-                var root = tree.GetRoot();
-                var diagnostics = tree.GetDiagnostics();
-                if (diagnostics.Any())
+                MetadataReference.CreateFromFile(systemAssemblyPath),
+                MetadataReference.CreateFromFile(runtimeAssemblyPath),
+                MetadataReference.CreateFromFile(consoleAssemblyPath),
+                MetadataReference.CreateFromFile(typeof(System.Linq.Enumerable).Assembly.Location)
+            };
+
+            // Создаем компиляцию с включенными диагностиками
+            var compilation = CSharpCompilation.Create("TempAssembly")
+                .AddReferences(references)
+                .AddSyntaxTrees(syntaxTree)
+                .WithOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+
+            // Получаем все диагностики (синтаксические и семантические)
+            var syntaxDiagnostics = syntaxTree.GetDiagnostics();
+            var compilationDiagnostics = compilation.GetDiagnostics();
+            var allDiagnostics = syntaxDiagnostics.Concat(compilationDiagnostics);
+
+            // Фильтруем ошибки
+            var errors = allDiagnostics
+                .Where(d => d.Severity == DiagnosticSeverity.Error)
+                .OrderBy(d => d.Location.GetLineSpan().StartLinePosition.Line)
+                .ToList();
+
+            if (errors.Count == 0)
+            {
+                return "Ошибки компиляции не найдены.\r\n";
+            }
+
+            // Формируем сообщение
+            return "Ошибки компиляции:\r\n" + string.Join("\r\n", errors
+                .Select(d => $"- {d.GetMessage()} (Строка: {d.Location.GetLineSpan().StartLinePosition.Line + 1})")) + "\r\n";
+        }
+
+        /// <summary>
+        /// Проверяет соответствие кода стандартам Microsoft.
+        /// </summary>
+        public string StyleAnalyzer()
+        {
+            
+
+            string code = File.ReadAllText(fileToAnalyze);
+            SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(code);
+            var diagnostics = syntaxTree.GetDiagnostics();
+
+            // Если есть ошибки компиляции, возвращаем их
+            
+
+            SyntaxNode root = syntaxTree.GetRoot();
+            List<string> issues = new List<string>();
+
+            issues.AddRange(CheckIndentation(root));
+            issues.AddRange(CheckNamingConventions(root));
+            issues.AddRange(CheckComments(root));
+
+            return issues.Any() ? "Нарушения кодстайла:\r\n" + string.Join("\r\n", issues) : "Код соответствует стандартам Microsoft.";
+        }
+
+        /// <summary>
+        /// Проверяет отступы в коде с учетом вложенности блоков.
+        /// </summary>
+        private List<string> CheckIndentation(SyntaxNode root)
+        {
+            var issues = new List<string>();
+            // Получаем текст и его разбиение на строки
+            SourceText text = root.SyntaxTree.GetText();
+            var lines = text.Lines;
+            bool isBrekingDefault = false;
+
+            // Текущий ожидаемый отступ (в пробелах)
+            int currentIndent = 0;
+            // Размер одного уровня отступа
+            const int spacesPerIndent = 4;
+            // Стек для отслеживания отступа конструкции switch:
+            // когда мы входим в switch, запоминаем отступ строки с ключевым словом switch,
+            // а для меток case/default ожидается switchIndent + spacesPerIndent.
+            var switchStack = new Stack<int>();
+
+            // Обрабатываем каждую строку
+            for (int i = 0; i < lines.Count; i++)
+            {
+                string lineText = lines[i].ToString();
+
+                // Пропускаем пустые или состоящие только из пробелов строки
+                if (string.IsNullOrWhiteSpace(lineText))
+                    continue;
+
+                // Фактический отступ – число пробелов в начале строки
+                int actualIndent = lineText.TakeWhile(c => c == ' ').Count();
+                string trimmed = lineText.TrimStart();
+
+                // Определяем ожидаемый отступ для текущей строки
+                int expectedIndent = currentIndent;
+
+                // Если строка начинается с закрывающей фигурной скобки,
+                // то ожидается отступ на один уровень меньше.
+                if (trimmed.StartsWith("}"))
                 {
-                    isError = $"Ошибки в файле {fileToAnalys} : \n";
-                    foreach (var diagnostic in diagnostics)
-                    {
-                        isError += $"- {diagnostic.GetMessage()} в строке {diagnostic.Location.GetLineSpan().StartLinePosition.Line + 1}\n";
-                    }
+                    expectedIndent = currentIndent - spacesPerIndent;
                 }
                 
-                tree = null;
-                return isError;
 
-            }
-        }
-
-        /// <summary>
-        /// Проверяет кодстайл кода ф файле, согласно стандартам Microsoft
-        /// </summary>
-        /// <returns>Отчёт о проверке</returns>
-        internal string StyleAnalyser()
-        {
-            string ans = "";
-            if (!File.Exists(fileToAnalys))
-            {
-                return "Введён неправильный путь к файлу";
-            }
-            else
-            {
-                string code = File.ReadAllText(fileToAnalys);
-                SyntaxTree tree = CSharpSyntaxTree.ParseText(code);
-                var root = tree.GetRoot();
-                if (CheckCodeStyle(root).Length > 0) 
+                // Если строка начинается с "case" или "default"
+                // и мы находимся внутри switch (есть сохранённый switchIndent),
+                // то ожидаемый отступ равен switchIndent + spacesPerIndent.
+                if ((trimmed.StartsWith("case ") || trimmed.StartsWith("default")) &&
+                     switchStack.Count > 0)
                 {
-                    ans += $"Ошибки стиля кода в файле {fileToAnalys}\n";
+                    expectedIndent = switchStack.Peek() + spacesPerIndent;
+                    currentIndent = switchStack.Peek() + 2 * spacesPerIndent;
+                    
                 }
-                ans += CheckCodeStyle(root);
-
-                tree = null;
-                return ans;
-            }
-        }
-
-
-
-
-
-
-
-
-
-        /// <summary>
-        /// Вспомогательный статический метод для проверки соответсию кодстайла
-        /// </summary>
-        /// <param name="root"></param>
-        /// <returns>Отчёт о проверке</returns>
-        static string CheckCodeStyle(SyntaxNode root)
-        {
-            string ans = "";
-
-            ans += CheckIndentation(root);
-            ans += "\n";
-
-            ans += CheckNamingConventions(root);
-            ans += "\n";
-
-            ans += CheckComments(root);
-            ans += "\n";
-            
-            return ans;
-        }
-        /// <summary>
-        /// Вспомогательный статический метод для проверки отсупов
-        /// </summary>
-        /// <param name="root"></param>
-        /// <returns></returns>
-        private static string CheckIndentation(SyntaxNode root)
-        {
-            
-            string ans = "";
-
-            var lines = root.ToString().Split('\n');
-            for (int i = 0; i < lines.Length; i++)
-            {
-                string line = lines[i];
-                if (!string.IsNullOrWhiteSpace(line) && !line.TrimStart().StartsWith("//"))
+                if (trimmed.StartsWith("default") && switchStack.Count > 0)
                 {
-                    int expectedIndent = GetExpectedIndentLevel(line);
-                    int actualIndent = line.Length - line.TrimStart().Length;
+                    isBrekingDefault = true;
 
-                    if (actualIndent != expectedIndent * 4) 
+                }
+                if (trimmed.StartsWith("break") && isBrekingDefault)
+                {
+                    currentIndent = switchStack.Peek() + spacesPerIndent;
+                }
+
+
+
+                if (actualIndent != expectedIndent)
+                {
+                    issues.Add($"- Строка {i + 1}: Необходимо {expectedIndent} количество пробелов, обнаружено {actualIndent}.\r\n");
+                }
+
+                // Если строка начинается с "switch", запоминаем её текущий отступ.
+                // (Можно доработать, чтобы исключить совпадения внутри комментариев.)
+                if (trimmed.StartsWith("switch"))
+                {
+                    switchStack.Push(currentIndent);
+                }
+                
+
+                // Анализируем символы строки для корректировки уровня отступа.
+                // Здесь предполагается, что фигурные скобки не встречаются в строковых литералах/комментариях.
+                foreach (char c in lineText)
+                {
+                    if (c == '{')
                     {
-                        ans += ($"Ошибка отступа в строке {i + 1}: ожидается {expectedIndent * 4} пробелов, найдено {actualIndent}\n");
+                        currentIndent += spacesPerIndent;
+                    }
+                    else if (c == '}')
+                    {
+                        currentIndent -= spacesPerIndent;
+                        // Если вышли из блока switch, то сбрасываем уровень switch (если достигли сохранённого отступа)
+                        if (switchStack.Count > 0 && currentIndent == switchStack.Peek())
+                        {
+                            switchStack.Pop();
+                        }
                     }
                 }
-                ans += "\n";
             }
-            return ans;
-        }
 
-        private static int GetExpectedIndentLevel(string line)
-        {
-            if (line.Contains("{")) return 1;
-            if (line.Contains("}")) return 0;
-            return 1; 
+            return issues;
         }
 
         /// <summary>
-        /// Вспомогательный статический метод для проверки правильного наименования методов и переменных
+        /// Проверяет соглашения именования для методов, переменных, полей и констант.
         /// </summary>
-        /// <param name="root"></param>
-        /// <returns>Отчёт о проверке</returns>
-        private static string CheckNamingConventions(SyntaxNode root)
+        private List<string> CheckNamingConventions(SyntaxNode root)
         {
-            string ans = "";
+            var issues = new List<string>();
 
-            var methods = root.DescendantNodes().OfType<MethodDeclarationSyntax>();
-            foreach (var method in methods)
+            // Проверка методов
+            foreach (var method in root.DescendantNodes().OfType<MethodDeclarationSyntax>())
             {
                 if (!char.IsUpper(method.Identifier.ValueText[0]))
                 {
-                    ans += ($"Метод '{method.Identifier.ValueText}' должен начинаться с заглавной буквы (строка: {method.GetLocation().GetLineSpan().StartLinePosition.Line + 1}) \n");
+                    issues.Add($"- Метод '{method.Identifier.ValueText}' должен начинаться с заглавной буквы (Строка: {method.GetLocation().GetLineSpan().StartLinePosition.Line + 1})\r\n");
                 }
             }
 
-            var variables = root.DescendantNodes().OfType<VariableDeclaratorSyntax>();
-            foreach (var variable in variables)
+            // Проверка локальных переменных и параметров
+            foreach (var variable in root.DescendantNodes().OfType<VariableDeclaratorSyntax>())
             {
-                if (!char.IsLower(variable.Identifier.ValueText[0]))
+                if (variable.Parent is VariableDeclarationSyntax varDecl &&
+                    varDecl.Parent is LocalDeclarationStatementSyntax)
                 {
-                    ans += ($"Переменная '{variable.Identifier.ValueText}' должна начинаться с маленькой буквы (строка: {variable.GetLocation().GetLineSpan().StartLinePosition.Line + 1})\n");
+                    if (!char.IsLower(variable.Identifier.ValueText[0]) && variable.Identifier.ValueText[0] != '_')
+                    {
+                        issues.Add($"- Локальная переменная '{variable.Identifier.ValueText}' должна начинаться с маленькой буквы или '_' (Строка: {variable.GetLocation().GetLineSpan().StartLinePosition.Line + 1})\r\n");
+                    }
                 }
             }
-            return ans;
+
+            // Проверка полей и констант
+            foreach (var field in root.DescendantNodes().OfType<FieldDeclarationSyntax>())
+            {
+                foreach (var variable in field.Declaration.Variables)
+                {
+                    bool isConst = field.Modifiers.Any(m => m.IsKind(SyntaxKind.ConstKeyword));
+                    if (isConst)
+                    {
+                        if (!variable.Identifier.ValueText.All(c => char.IsUpper(c) || c == '_'))
+                        {
+                            issues.Add($"- Константа '{variable.Identifier.ValueText}' должна состоять из заглавных букв и '_' (Строка: {variable.GetLocation().GetLineSpan().StartLinePosition.Line + 1})");
+                        }
+                    }
+                    else if (field.Modifiers.Any(m => m.IsKind(SyntaxKind.PrivateKeyword)))
+                    {
+                        if (variable.Identifier.ValueText.Length == 0 || (variable.Identifier.ValueText[0] != '_' && !char.IsLower(variable.Identifier.ValueText[0])))
+                        {
+                            issues.Add($"- Приватное поле '{variable.Identifier.ValueText}' должно начинаться с '_' или маленькой буквы (Строка: {variable.GetLocation().GetLineSpan().StartLinePosition.Line + 1})");
+                        }
+                    }
+                }
+            }
+
+            return issues;
         }
 
         /// <summary>
-        /// Вспомгательный статический метод для проверки правильности написания комментариев
+        /// Проверяет наличие XML-документации у публичных методов.
         /// </summary>
-        /// <param name="root"></param>
-        /// <returns>Отчёт о проверке</returns>
-        private static string CheckComments(SyntaxNode root)
+        private List<string> CheckComments(SyntaxNode root)
         {
-            string ans = "";
+            var issues = new List<string>();
 
-            var methods = root.DescendantNodes().OfType<MethodDeclarationSyntax>();
-            foreach (var method in methods)
+            foreach (var method in root.DescendantNodes().OfType<MethodDeclarationSyntax>())
             {
-                var leadingTrivia = method.GetLeadingTrivia();
-                bool hasComment = leadingTrivia.Any(t => t.IsKind(SyntaxKind.SingleLineCommentTrivia) || t.IsKind(SyntaxKind.MultiLineCommentTrivia));
+                bool hasXmlDoc = method.GetLeadingTrivia()
+                    .Any(t => t.IsKind(SyntaxKind.SingleLineDocumentationCommentTrivia) ||
+                              t.IsKind(SyntaxKind.MultiLineDocumentationCommentTrivia));
 
-                if (!hasComment && method.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)))
+                if (!hasXmlDoc && method.Modifiers.Any(m => m.IsKind(SyntaxKind.PublicKeyword)))
                 {
-                    ans += ($"Публичный метод '{method.Identifier.ValueText}' должен иметь комментарий (строка: {method.GetLocation().GetLineSpan().StartLinePosition.Line + 1})\n");
+                    issues.Add($"- Публичный метод '{method.Identifier.ValueText}' должен иметь XML-документацию (Строка: {method.GetLocation().GetLineSpan().StartLinePosition.Line + 1})");
                 }
             }
-            return ans;
+
+            return issues;
         }
     }
 }
