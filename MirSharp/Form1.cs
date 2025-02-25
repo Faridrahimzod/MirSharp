@@ -19,9 +19,13 @@ namespace MirSharp
         List<string> files_names = new List<string>() { }; // Список для хранения путей к файлам типа .cs
         string pathInTextBox1; // Строка-путь в textbox1
         string result = "";
+        private HistoryChecking _historyRepository;
+        string dataPath = Path.Combine(Directory.GetCurrentDirectory(), "DataBase.db");
         public Form1()
         {
             InitializeComponent();
+            _historyRepository = new HistoryChecking(dataPath);
+            
             // Включаем поддержку перетаскивания
             button1.AllowDrop = true;
             button1.DragEnter += new DragEventHandler(button1_DragEnter);
@@ -251,6 +255,13 @@ namespace MirSharp
                 result += codeStyler.StyleAnalyzer();
                 
             }
+
+            // Сохраняем результат в базу данных
+            foreach (string file in files_names)
+            {
+                _historyRepository.AddCheckResult(file, result);
+            }
+
             panel1.Visible = true;
 
             textBox2.Text = result;
@@ -286,6 +297,13 @@ namespace MirSharp
             textBox2.Clear();
             panel1.Visible=false;
             
+        }
+
+        private void button4_Click(object sender, EventArgs e)
+        {
+            var history = _historyRepository.GetCheckHistory();
+            var historyForm = new HistoryForm(history);
+            historyForm.ShowDialog();
         }
     }
 }
