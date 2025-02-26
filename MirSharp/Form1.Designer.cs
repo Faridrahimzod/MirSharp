@@ -170,7 +170,7 @@
             // 
             this.button4.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.button4.AutoSize = true;
-            this.button4.BackColor = System.Drawing.SystemColors.Highlight;
+            this.button4.BackColor = System.Drawing.Color.DarkCyan;
             this.button4.ForeColor = System.Drawing.SystemColors.ButtonFace;
             this.button4.Location = new System.Drawing.Point(1139, 78);
             this.button4.Name = "button4";
