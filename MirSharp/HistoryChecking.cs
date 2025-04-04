@@ -79,6 +79,15 @@ namespace MirSharp
             }
             return history;
         }
+        public void ClearHistory()
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+                var command = new SQLiteCommand("DELETE FROM CheckHistory;", connection);
+                command.ExecuteNonQuery();
+            }
+        }
     }
     public class CheckHistoryEntry
     {

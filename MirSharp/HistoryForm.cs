@@ -2,15 +2,19 @@
 using System.Collections.Generic;
 using System.Windows.Forms;
 using System;
+using System.IO;
 
 namespace MirSharp
 {
     public class HistoryForm : Form
     {
         private DataGridView dataGridView;
+        private List<CheckHistoryEntry> _history;
 
         public HistoryForm(List<CheckHistoryEntry> history)
         {
+            _history = history;
+
             // Настройка формы
             this.Text = "История проверок";
             this.Size = new System.Drawing.Size(800, 600);
@@ -43,14 +47,30 @@ namespace MirSharp
             // Добавляем DataGridView на форму
             this.Controls.Add(dataGridView);
 
-            // Добавляем кнопку для просмотра полного текста
-            var viewFullTextButton = new Button
+            
+
+
+            var panel = new Panel { Dock = DockStyle.Bottom, Height = 40 };
+            var clearButton = new Button
+            {
+                Text = "Очистить историю",
+                Width = 120,
+                Dock = DockStyle.Left
+            };
+            clearButton.Click += ClearButton_Click;
+
+            // Существующая кнопка просмотра
+            var viewButton = new Button
             {
                 Text = "Просмотреть полный текст",
-                Dock = DockStyle.Bottom
+                Width = 180,
+                Dock = DockStyle.Right
             };
-            viewFullTextButton.Click += ViewFullTextButton_Click;
-            this.Controls.Add(viewFullTextButton);
+            viewButton.Click += ViewFullTextButton_Click;
+
+            panel.Controls.Add(clearButton);
+            panel.Controls.Add(viewButton);
+            this.Controls.Add(panel);
         }
 
         private void ViewFullTextButton_Click(object sender, EventArgs e)
@@ -66,6 +86,23 @@ namespace MirSharp
                 {
                     MessageBox.Show("Результат отсутствует.", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
+            }
+        }
+
+        private void ClearButton_Click(object sender, EventArgs e)
+        {
+            var result = MessageBox.Show("Вы уверены, что хотите полностью очистить историю?",
+                                       "Подтверждение",
+                                       MessageBoxButtons.YesNo,
+                                       MessageBoxIcon.Warning);
+
+            if (result == DialogResult.Yes)
+            {
+                var checker = new HistoryChecking(Path.Combine(Directory.GetCurrentDirectory(), "DataBase.db"));
+                checker.ClearHistory();
+                _history.Clear();
+                dataGridView.Rows.Clear();
+                MessageBox.Show("История успешно очищена!");
             }
         }
     }

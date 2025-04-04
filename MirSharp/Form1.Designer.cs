@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.label2 = new System.Windows.Forms.Label();
             this.button1 = new System.Windows.Forms.Button();
             this.label1 = new System.Windows.Forms.Label();
@@ -39,6 +40,8 @@
             this.button3 = new System.Windows.Forms.Button();
             this.textBox2 = new System.Windows.Forms.TextBox();
             this.button4 = new System.Windows.Forms.Button();
+            this.listBoxFiles = new System.Windows.Forms.ListBox();
+            this.toolTip = new System.Windows.Forms.ToolTip(this.components);
             this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -63,9 +66,9 @@
             this.button1.BackgroundImage = global::MirSharp.Properties.Resources.Безымянный3;
             this.button1.BackgroundImageLayout = System.Windows.Forms.ImageLayout.Stretch;
             this.button1.ForeColor = System.Drawing.SystemColors.ActiveCaptionText;
-            this.button1.Location = new System.Drawing.Point(213, 160);
+            this.button1.Location = new System.Drawing.Point(213, 138);
             this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(791, 318);
+            this.button1.Size = new System.Drawing.Size(791, 254);
             this.button1.TabIndex = 2;
             this.button1.UseVisualStyleBackColor = false;
             this.button1.Click += new System.EventHandler(this.button1_Click);
@@ -88,7 +91,7 @@
             this.label3.AutoSize = true;
             this.label3.Font = new System.Drawing.Font("HSE Sans", 16.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.label3.ForeColor = System.Drawing.SystemColors.ActiveCaption;
-            this.label3.Location = new System.Drawing.Point(213, 497);
+            this.label3.Location = new System.Drawing.Point(213, 490);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(448, 38);
             this.label3.TabIndex = 4;
@@ -98,7 +101,7 @@
             // 
             this.textBox1.Anchor = System.Windows.Forms.AnchorStyles.Top;
             this.textBox1.Font = new System.Drawing.Font("Times New Roman", 13.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.textBox1.Location = new System.Drawing.Point(220, 551);
+            this.textBox1.Location = new System.Drawing.Point(220, 540);
             this.textBox1.Multiline = true;
             this.textBox1.Name = "textBox1";
             this.textBox1.ScrollBars = System.Windows.Forms.ScrollBars.Horizontal;
@@ -165,6 +168,7 @@
             this.textBox2.ReadOnly = true;
             this.textBox2.Size = new System.Drawing.Size(1243, 450);
             this.textBox2.TabIndex = 0;
+            this.textBox2.TextChanged += new System.EventHandler(this.textBox2_TextChanged_1);
             // 
             // button4
             // 
@@ -180,6 +184,28 @@
             this.button4.UseVisualStyleBackColor = false;
             this.button4.Click += new System.EventHandler(this.button4_Click);
             // 
+            // listBoxFiles
+            // 
+            this.listBoxFiles.Anchor = System.Windows.Forms.AnchorStyles.Top;
+            this.listBoxFiles.BackColor = System.Drawing.Color.AliceBlue;
+            this.listBoxFiles.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
+            this.listBoxFiles.Font = new System.Drawing.Font("Segoe UI", 10.2F);
+            this.listBoxFiles.FormattingEnabled = true;
+            this.listBoxFiles.HorizontalScrollbar = true;
+            this.listBoxFiles.ItemHeight = 23;
+            this.listBoxFiles.Location = new System.Drawing.Point(213, 413);
+            this.listBoxFiles.Name = "listBoxFiles";
+            this.listBoxFiles.SelectionMode = System.Windows.Forms.SelectionMode.MultiExtended;
+            this.listBoxFiles.Size = new System.Drawing.Size(791, 71);
+            this.listBoxFiles.TabIndex = 9;
+            // 
+            // toolTip
+            // 
+            this.toolTip.AutoPopDelay = 5000;
+            this.toolTip.InitialDelay = 500;
+            this.toolTip.ReshowDelay = 500;
+            this.toolTip.ShowAlways = true;
+            // 
             // Form1
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(10F, 22F);
@@ -194,6 +220,7 @@
             this.Controls.Add(this.label1);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.label2);
+            this.Controls.Add(this.listBoxFiles);
             this.Cursor = System.Windows.Forms.Cursors.Default;
             this.Font = new System.Drawing.Font("Microsoft Sans Serif", 10.8F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
             this.ForeColor = System.Drawing.SystemColors.Control;
@@ -219,6 +246,8 @@
         private System.Windows.Forms.Button button3;
         private System.Windows.Forms.TextBox textBox2;
         private System.Windows.Forms.Button button4;
+        private System.Windows.Forms.ListBox listBoxFiles;
+        private System.Windows.Forms.ToolTip toolTip;
     }
 }
 

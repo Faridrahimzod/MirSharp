@@ -24,6 +24,9 @@ namespace MirSharp
         public Form1()
         {
             InitializeComponent();
+            this.Visible = true; 
+            this.WindowState = FormWindowState.Normal;
+
             _historyRepository = new HistoryChecking(dataPath);
             
             // Включаем поддержку перетаскивания
@@ -38,7 +41,21 @@ namespace MirSharp
 
             // Подписка на событие MouseWheel
             textBox2.MouseWheel += new MouseEventHandler(textBox2_MouseWheel);
+            listBoxFiles.MouseMove += ListBoxFiles_MouseMove;
 
+
+        }
+        private void ListBoxFiles_MouseMove(object sender, MouseEventArgs e)
+        {
+            int index = listBoxFiles.IndexFromPoint(e.Location);
+            if (index >= 0 && index < files_names.Count)
+            {
+                toolTip.SetToolTip(listBoxFiles, files_names[index]);
+            }
+            else
+            {
+                toolTip.Hide(listBoxFiles);
+            }
         }
 
         private void label1_Click(object sender, EventArgs e)
@@ -80,7 +97,7 @@ namespace MirSharp
         private bool IsArchive(string path)
         {
             return File.Exists(path) && Path.GetExtension(path).Equals(".zip", StringComparison.OrdinalIgnoreCase);
-        }
+        } 
         private void ProcessFolder(string folderPath)
         {
             // Добавляем все .cs файлы из папки
@@ -156,15 +173,16 @@ namespace MirSharp
                     Directory.Delete(extractPath, true);
                 }
             }
+            UpdateFilesList();
 
-            
-            
+
         }
-
+        
         private void textBox1_TextChanged(object sender, EventArgs e)
         {
             pathInTextBox1 = textBox1.Text;
-                        
+            UpdateFilesList();
+
         }
 
         
@@ -207,10 +225,16 @@ namespace MirSharp
                 }
 
             }
+            UpdateFilesList();
         }
 
         private void button2_Click(object sender, EventArgs e)
         {
+            if (files_names.Count == 0)
+            {
+                MessageBox.Show("Не выбрано ни одного файла для анализа!");
+                return;
+            }
             if (pathInTextBox1 != null)
             {
                 try
@@ -245,28 +269,37 @@ namespace MirSharp
                 }
             }
 
-            //Основная часть кода для проверки на кодстайл
-            foreach (string file in files_names)
+            try
             {
-                
-                CodeStyler codeStyler = new CodeStyler(file);
-                result += codeStyler.ErrorAnalyzer();
-                result += "\n";
+                // Создаем один анализатор для всех файлов
+                CodeStyler codeStyler = new CodeStyler(files_names);
+
+                // Получаем результаты анализа
+                result = codeStyler.ErrorAnalyzer();
                 result += codeStyler.StyleAnalyzer();
-                
-            }
 
-            // Сохраняем результат в базу данных
-            foreach (string file in files_names)
+                // Сохраняем результат для каждого файла
+                foreach (var file in files_names)
+                {
+                    _historyRepository.AddCheckResult(file, result);
+                }
+
+                // Показываем результаты
+                panel1.Visible = true;
+                textBox2.Text = result;
+            }
+            catch (Exception ex)
             {
-                _historyRepository.AddCheckResult(file, result);
+                MessageBox.Show($"Ошибка анализа: {ex.Message}");
+            }
+            finally
+            {
+                // Очищаем список файлов после анализа
+                files_names.Clear();
+                UpdateFilesList();
             }
 
-            panel1.Visible = true;
-
-            textBox2.Text = result;
-            files_names.Clear();
-            result = string.Empty;
+            
             
         }
         
@@ -304,6 +337,21 @@ namespace MirSharp
             var history = _historyRepository.GetCheckHistory();
             var historyForm = new HistoryForm(history);
             historyForm.ShowDialog();
+        }
+
+        private void textBox2_TextChanged_1(object sender, EventArgs e)
+        {
+
+        }
+
+        private void UpdateFilesList()
+        {
+            listBoxFiles.Items.Clear();
+            foreach (var file in files_names)
+            {
+                listBoxFiles.Items.Add(Path.GetFileName(file));
+            }
+
         }
     }
 }

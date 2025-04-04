@@ -6,6 +6,7 @@ using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
+using System.Text;
 
 namespace MirSharp
 {
@@ -14,91 +15,110 @@ namespace MirSharp
     /// </summary>
     internal class CodeStyler
     {
-        private readonly string fileToAnalyze;
+        private readonly List<string> _filesToAnalyze;
 
-        public CodeStyler(string path)
+        // Изменяем конструктор для приема списка файлов
+        public CodeStyler(List<string> files)
         {
-            fileToAnalyze = Path.GetFullPath(path);
+            _filesToAnalyze = files.ConvertAll(Path.GetFullPath);
         }
 
-        /// <summary>
-        /// Проверяет, компилируется ли код без ошибок.
-        /// </summary>
         public string ErrorAnalyzer()
         {
-            if (!File.Exists(fileToAnalyze))
+            if (_filesToAnalyze.Count == 0)
+                return "Ошибка: не указаны файлы для анализа.";
+
+            try
             {
-                return "Ошибка: указанный файл не существует.";
+                var compilation = CreateCompilation();
+                var diagnostics = compilation.GetDiagnostics()
+                    .Where(d => d.Severity == DiagnosticSeverity.Error)
+                    .OrderBy(d => d.Location.SourceTree?.FilePath)
+                    .ThenBy(d => d.Location.GetLineSpan().StartLinePosition.Line)
+                    .ToList();
+
+                return FormatDiagnostics(diagnostics);
             }
-
-            string code = File.ReadAllText(fileToAnalyze);
-
-            // Парсим код с явным указанием версии языка
-            var parseOptions = new CSharpParseOptions(LanguageVersion.Latest);
-            SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(code, parseOptions);
-
-            // Добавляем все необходимые системные сборки
-            var systemAssemblyPath = typeof(object).Assembly.Location;
-            var runtimeAssemblyPath = typeof(System.Runtime.GCSettings).Assembly.Location;
-            var consoleAssemblyPath = typeof(Console).Assembly.Location;
-
-            var references = new[]
+            catch (Exception ex)
             {
-                MetadataReference.CreateFromFile(systemAssemblyPath),
-                MetadataReference.CreateFromFile(runtimeAssemblyPath),
-                MetadataReference.CreateFromFile(consoleAssemblyPath),
-                MetadataReference.CreateFromFile(typeof(System.Linq.Enumerable).Assembly.Location)
-            };
-
-            // Создаем компиляцию с включенными диагностиками
-            var compilation = CSharpCompilation.Create("TempAssembly")
-                .AddReferences(references)
-                .AddSyntaxTrees(syntaxTree)
-                .WithOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
-
-            // Получаем все диагностики (синтаксические и семантические)
-            var syntaxDiagnostics = syntaxTree.GetDiagnostics();
-            var compilationDiagnostics = compilation.GetDiagnostics();
-            var allDiagnostics = syntaxDiagnostics.Concat(compilationDiagnostics);
-
-            // Фильтруем ошибки
-            var errors = allDiagnostics
-                .Where(d => d.Severity == DiagnosticSeverity.Error)
-                .OrderBy(d => d.Location.GetLineSpan().StartLinePosition.Line)
-                .ToList();
-
-            if (errors.Count == 0)
-            {
-                return "Ошибки компиляции не найдены.\r\n";
+                return $"Ошибка компиляции: {ex.Message}";
             }
-
-            // Формируем сообщение
-            return "Ошибки компиляции:\r\n" + string.Join("\r\n", errors
-                .Select(d => $"- {d.GetMessage()} (Строка: {d.Location.GetLineSpan().StartLinePosition.Line + 1})")) + "\r\n";
         }
 
-        /// <summary>
-        /// Проверяет соответствие кода стандартам Microsoft.
-        /// </summary>
+        private CSharpCompilation CreateCompilation()
+        {
+            // Создаем синтаксические деревья для всех файлов
+            var syntaxTrees = new List<SyntaxTree>();
+            foreach (var file in _filesToAnalyze)
+            {
+                var code = File.ReadAllText(file);
+                var tree = CSharpSyntaxTree.ParseText(
+                    code,
+                    path: file,
+                    encoding: Encoding.UTF8
+                );
+                syntaxTrees.Add(tree);
+            }
+
+            // Базовые системные ссылки
+            var references = new[]
+            {
+            MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(Enumerable).Assembly.Location),
+            MetadataReference.CreateFromFile(typeof(System.Runtime.GCSettings).Assembly.Location)
+        };
+
+            return CSharpCompilation.Create("MultiFileAnalysis")
+                .AddReferences(references)
+                .AddSyntaxTrees(syntaxTrees)
+                .WithOptions(new CSharpCompilationOptions(OutputKind.DynamicallyLinkedLibrary));
+        }
+
+        private string FormatDiagnostics(List<Diagnostic> diagnostics)
+        {
+            if (diagnostics.Count == 0)
+                return "Ошибки компиляции не найдены.\r\n";
+
+            var result = new StringBuilder("Ошибки компиляции:\r\n");
+            foreach (var diagnostic in diagnostics)
+            {
+                var filePath = diagnostic.Location.SourceTree?.FilePath ?? "unknown";
+                var lineSpan = diagnostic.Location.GetLineSpan();
+
+                result.AppendLine(
+                    $"[Файл: {Path.GetFileName(filePath)}] " +
+                    $"[Строка: {lineSpan.StartLinePosition.Line + 1}] " +
+                    $"{diagnostic.GetMessage()}");
+            }
+            return result.ToString();
+        }
+
         public string StyleAnalyzer()
         {
-            
+            var result = new StringBuilder();
+            foreach (var file in _filesToAnalyze)
+            {
+                // Анализ стиля для каждого файла отдельно
+                result.AppendLine(AnalyzeSingleFileStyle(file));
+            }
+            return result.ToString();
+        }
 
-            string code = File.ReadAllText(fileToAnalyze);
-            SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(code);
-            var diagnostics = syntaxTree.GetDiagnostics();
+        private string AnalyzeSingleFileStyle(string filePath)
+        {
+            var code = File.ReadAllText(filePath);
+            var syntaxTree = CSharpSyntaxTree.ParseText(code);
+            var root = syntaxTree.GetRoot();
 
-            // Если есть ошибки компиляции, возвращаем их
-            
-
-            SyntaxNode root = syntaxTree.GetRoot();
             List<string> issues = new List<string>();
-
             issues.AddRange(CheckIndentation(root));
             issues.AddRange(CheckNamingConventions(root));
             issues.AddRange(CheckComments(root));
 
-            return issues.Any() ? "Нарушения кодстайла:\r\n" + string.Join("\r\n", issues) : "Код соответствует стандартам Microsoft.";
+            var header = $"Анализ стиля для файла: {Path.GetFileName(filePath)}\r\n";
+            return issues.Any()
+                ? header + string.Join("\r\n", issues) + "\r\n"
+                : header + "Код соответствует стандартам Microsoft.\r\n";
         }
 
         /// <summary>
@@ -279,5 +299,7 @@ namespace MirSharp
 
             return issues;
         }
+
+        
     }
 }
