@@ -1,4 +1,6 @@
-﻿namespace MirSharp
+﻿using System.Windows.Forms;
+
+namespace MirSharp
 {
     partial class Form1
     {
@@ -39,9 +41,13 @@
             this.panel1 = new System.Windows.Forms.Panel();
             this.button3 = new System.Windows.Forms.Button();
             this.textBox2 = new System.Windows.Forms.TextBox();
+            this.btnExport = new System.Windows.Forms.Button();
+            this.cmbFileFormat = new System.Windows.Forms.ComboBox();
+            this.lblFormat = new System.Windows.Forms.Label();
             this.button4 = new System.Windows.Forms.Button();
             this.listBoxFiles = new System.Windows.Forms.ListBox();
             this.toolTip = new System.Windows.Forms.ToolTip(this.components);
+            this.label4 = new System.Windows.Forms.Label();
             this.panel1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -132,11 +138,15 @@
             this.panel1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
             this.panel1.AutoSize = true;
+            this.panel1.Controls.Add(this.label4);
             this.panel1.Controls.Add(this.button3);
             this.panel1.Controls.Add(this.textBox2);
+            this.panel1.Controls.Add(this.btnExport);
+            this.panel1.Controls.Add(this.cmbFileFormat);
+            this.panel1.Controls.Add(this.lblFormat);
             this.panel1.Location = new System.Drawing.Point(1, 119);
             this.panel1.Name = "panel1";
-            this.panel1.Size = new System.Drawing.Size(1243, 573);
+            this.panel1.Size = new System.Drawing.Size(1378, 573);
             this.panel1.TabIndex = 7;
             this.panel1.Visible = false;
             this.panel1.Paint += new System.Windows.Forms.PaintEventHandler(this.panel1_Paint);
@@ -147,7 +157,7 @@
             this.button3.AutoSize = true;
             this.button3.BackColor = System.Drawing.Color.Lime;
             this.button3.Font = new System.Drawing.Font("HSE Sans", 16.2F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(204)));
-            this.button3.Location = new System.Drawing.Point(471, 471);
+            this.button3.Location = new System.Drawing.Point(494, 466);
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(268, 58);
             this.button3.TabIndex = 1;
@@ -166,9 +176,44 @@
             this.textBox2.Multiline = true;
             this.textBox2.Name = "textBox2";
             this.textBox2.ReadOnly = true;
-            this.textBox2.Size = new System.Drawing.Size(1243, 450);
+            this.textBox2.Size = new System.Drawing.Size(1289, 450);
             this.textBox2.TabIndex = 0;
             this.textBox2.TextChanged += new System.EventHandler(this.textBox2_TextChanged_1);
+            // 
+            // btnExport
+            // 
+            this.btnExport.Anchor = System.Windows.Forms.AnchorStyles.Right;
+            this.btnExport.AutoSize = true;
+            this.btnExport.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)(0)))), ((int)(((byte)(0)))), ((int)(((byte)(192)))));
+            this.btnExport.Location = new System.Drawing.Point(1009, 517);
+            this.btnExport.Name = "btnExport";
+            this.btnExport.Size = new System.Drawing.Size(197, 53);
+            this.btnExport.TabIndex = 2;
+            this.btnExport.Text = "Экспорт результатов";
+            this.btnExport.Click += new System.EventHandler(this.btnExport_Click);
+            // 
+            // cmbFileFormat
+            // 
+            this.cmbFileFormat.Anchor = System.Windows.Forms.AnchorStyles.Right;
+            this.cmbFileFormat.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cmbFileFormat.FormattingEnabled = true;
+            this.cmbFileFormat.Items.AddRange(new object[] {
+            "Text File (.txt)",
+            "CSV File (.csv)",
+            "Excel File (.xls)"});
+            this.cmbFileFormat.Location = new System.Drawing.Point(1078, 485);
+            this.cmbFileFormat.Name = "cmbFileFormat";
+            this.cmbFileFormat.Size = new System.Drawing.Size(128, 30);
+            this.cmbFileFormat.TabIndex = 3;
+            // 
+            // lblFormat
+            // 
+            this.lblFormat.AutoSize = true;
+            this.lblFormat.Location = new System.Drawing.Point(1049, 479);
+            this.lblFormat.Name = "lblFormat";
+            this.lblFormat.Size = new System.Drawing.Size(168, 22);
+            this.lblFormat.TabIndex = 4;
+            this.lblFormat.Text = "Выберите формат:";
             // 
             // button4
             // 
@@ -205,6 +250,17 @@
             this.toolTip.InitialDelay = 500;
             this.toolTip.ReshowDelay = 500;
             this.toolTip.ShowAlways = true;
+            // 
+            // label4
+            // 
+            this.label4.Anchor = System.Windows.Forms.AnchorStyles.Right;
+            this.label4.AutoSize = true;
+            this.label4.ForeColor = System.Drawing.SystemColors.ActiveCaptionText;
+            this.label4.Location = new System.Drawing.Point(868, 460);
+            this.label4.Name = "label4";
+            this.label4.Size = new System.Drawing.Size(366, 22);
+            this.label4.TabIndex = 5;
+            this.label4.Text = "Выберите формат файла для сохранения:";
             // 
             // Form1
             // 
@@ -248,6 +304,10 @@
         private System.Windows.Forms.Button button4;
         private System.Windows.Forms.ListBox listBoxFiles;
         private System.Windows.Forms.ToolTip toolTip;
+        private System.Windows.Forms.Button btnExport;
+        private System.Windows.Forms.ComboBox cmbFileFormat;
+        private System.Windows.Forms.Label lblFormat;
+        private Label label4;
     }
 }
 

@@ -15,11 +15,9 @@ namespace MirSharp
         {
             _history = history;
 
-            // Настройка формы
             this.Text = "История проверок";
             this.Size = new System.Drawing.Size(800, 600);
 
-            // Создаем DataGridView
             dataGridView = new DataGridView
             {
                 Dock = DockStyle.Fill,
@@ -29,7 +27,7 @@ namespace MirSharp
                 ReadOnly = true
             };
 
-            // Настраиваем столбцы вручную
+            // Настраиваем столбцы
             dataGridView.Columns.Add("FileName", "Имя файла");
             dataGridView.Columns.Add("CheckDate", "Дата проверки");
             dataGridView.Columns.Add("Result", "Результат");

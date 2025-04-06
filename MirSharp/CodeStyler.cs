@@ -17,7 +17,6 @@ namespace MirSharp
     {
         private readonly List<string> _filesToAnalyze;
 
-        // Изменяем конструктор для приема списка файлов
         public CodeStyler(List<string> files)
         {
             _filesToAnalyze = files.ConvertAll(Path.GetFullPath);
@@ -47,7 +46,6 @@ namespace MirSharp
 
         private CSharpCompilation CreateCompilation()
         {
-            // Создаем синтаксические деревья для всех файлов
             var syntaxTrees = new List<SyntaxTree>();
             foreach (var file in _filesToAnalyze)
             {
@@ -60,7 +58,6 @@ namespace MirSharp
                 syntaxTrees.Add(tree);
             }
 
-            // Базовые системные ссылки
             var references = new[]
             {
             MetadataReference.CreateFromFile(typeof(object).Assembly.Location),
@@ -98,7 +95,6 @@ namespace MirSharp
             var result = new StringBuilder();
             foreach (var file in _filesToAnalyze)
             {
-                // Анализ стиля для каждого файла отдельно
                 result.AppendLine(AnalyzeSingleFileStyle(file));
             }
             return result.ToString();
@@ -166,7 +162,7 @@ namespace MirSharp
                 
 
                 // Если строка начинается с "case" или "default"
-                // и мы находимся внутри switch (есть сохранённый switchIndent),
+                // и мы находимся внутри switch,
                 // то ожидаемый отступ равен switchIndent + spacesPerIndent.
                 if ((trimmed.StartsWith("case ") || trimmed.StartsWith("default")) &&
                      switchStack.Count > 0)
@@ -193,7 +189,6 @@ namespace MirSharp
                 }
 
                 // Если строка начинается с "switch", запоминаем её текущий отступ.
-                // (Можно доработать, чтобы исключить совпадения внутри комментариев.)
                 if (trimmed.StartsWith("switch"))
                 {
                     switchStack.Push(currentIndent);
@@ -211,7 +206,7 @@ namespace MirSharp
                     else if (c == '}')
                     {
                         currentIndent -= spacesPerIndent;
-                        // Если вышли из блока switch, то сбрасываем уровень switch (если достигли сохранённого отступа)
+                        // Если вышли из блока switch, то сбрасываем уровень switch 
                         if (switchStack.Count > 0 && currentIndent == switchStack.Peek())
                         {
                             switchStack.Pop();

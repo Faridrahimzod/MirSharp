@@ -10,14 +10,17 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using static System.Windows.Forms.VisualStyles.VisualStyleElement;
 using System.IO.Compression;
+using ClosedXML.Excel;
+using System.Diagnostics;
+
 
 
 namespace MirSharp
 {
     public partial class Form1 : Form
     {
-        List<string> files_names = new List<string>() { }; // Список для хранения путей к файлам типа .cs
-        string pathInTextBox1; // Строка-путь в textbox1
+        List<string> files_names = new List<string>() { }; 
+        string pathInTextBox1;
         string result = "";
         private HistoryChecking _historyRepository;
         string dataPath = Path.Combine(Directory.GetCurrentDirectory(), "DataBase.db");
@@ -29,7 +32,6 @@ namespace MirSharp
 
             _historyRepository = new HistoryChecking(dataPath);
             
-            // Включаем поддержку перетаскивания
             button1.AllowDrop = true;
             button1.DragEnter += new DragEventHandler(button1_DragEnter);
             button1.DragDrop += new DragEventHandler(button1_DragDrop);
@@ -39,7 +41,6 @@ namespace MirSharp
             textBox2.Multiline = true;
             textBox2.ScrollBars = ScrollBars.Vertical;
 
-            // Подписка на событие MouseWheel
             textBox2.MouseWheel += new MouseEventHandler(textBox2_MouseWheel);
             listBoxFiles.MouseMove += ListBoxFiles_MouseMove;
 
@@ -125,7 +126,7 @@ namespace MirSharp
                 bool allValid = true;
                 foreach (string path in files)
                 {
-                    if (!IsCsFile(path) && !IsProjectFolder(path) && !IsArchive(path))
+                    if (!IsCsFile(path) && !IsProjectFolder(path))
                     {
                         allValid = false;
                         break;
@@ -312,11 +313,11 @@ namespace MirSharp
         {
             if (e.Delta > 0)
             {
-                SendKeys.Send("{UP}"); // Прокрутка вверх
+                SendKeys.Send("{UP}"); 
             }
             else if (e.Delta < 0)
             {
-                SendKeys.Send("{DOWN}"); // Прокрутка вниз
+                SendKeys.Send("{DOWN}"); 
             }
         }
         private void textBox2_TextChanged(object sender, EventArgs e)
@@ -342,6 +343,164 @@ namespace MirSharp
         private void textBox2_TextChanged_1(object sender, EventArgs e)
         {
 
+        }
+
+        private void btnExport_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(result))
+            {
+                MessageBox.Show("Нет данных для экспорта!");
+                return;
+            }
+
+            if (cmbFileFormat.SelectedItem == null)
+            {
+                MessageBox.Show("Выберите формат файла!");
+                return;
+            }
+
+            SaveFileDialog saveFileDialog = new SaveFileDialog();
+
+            switch (cmbFileFormat.SelectedItem.ToString())
+            {
+                case "Text File (.txt)":
+                    saveFileDialog.Filter = "Text files (*.txt)|*.txt";
+                    break;
+                case "CSV File (.csv)":
+                    saveFileDialog.Filter = "CSV files (*.csv)|*.csv";
+                    break;
+                case "Excel File (.xls)":
+                    saveFileDialog.Filter = "Excel files (*.xls)|*.xls";
+                    break;
+            }
+
+            if (saveFileDialog.ShowDialog() == DialogResult.OK)
+            {
+                try
+                {
+                    string filePath = saveFileDialog.FileName;
+
+                    switch (Path.GetExtension(filePath).ToLower())
+                    {
+                        case ".txt":
+                            ExportToTxt(filePath);
+                            break;
+                        case ".csv":
+                            ExportToCsv(filePath);
+                            break;
+                        case ".xls":
+                            ExportToExcel(filePath);
+                            break;
+                    }
+
+                    MessageBox.Show("Экспорт завершен успешно!");
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Ошибка экспорта: {ex.Message}");
+                }
+            }
+        }
+
+        private void ExportToTxt(string path)
+        {
+            File.WriteAllText(path, result);
+        }
+
+        private void ExportToCsv(string path)
+        {
+            StringBuilder csv = new StringBuilder();
+
+            csv.AppendLine("Тип;Описание;Строка");
+
+            foreach (var line in result.Split('\n'))
+            {
+                if (line.Contains(":"))
+                {
+                    var parts = line.Split(new[] { ':' }, 2);
+                    csv.AppendLine($"Ошибка;{parts[1].Trim()};{parts[0].Trim()}");
+                }
+            }
+
+            File.WriteAllText(path, csv.ToString(), Encoding.UTF8);
+        }
+
+        private void ExportToExcel(string filePath)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(filePath))
+                {
+                    MessageBox.Show("Не указан путь для сохранения файла!");
+                    return;
+                }
+
+                var directory = Path.GetDirectoryName(filePath);
+                if (!Directory.Exists(directory))
+                {
+                    Directory.CreateDirectory(directory);
+                }
+
+                var tempFilePath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + ".xlsx");
+
+                using (var workbook = new XLWorkbook())
+                {
+                    var worksheet = workbook.Worksheets.Add("Результаты анализа");
+
+                    worksheet.Cell(1, 1).Value = "Тип";
+                    worksheet.Cell(1, 2).Value = "Описание";
+                    worksheet.Cell(1, 3).Value = "Строка";
+
+                    string[] lines = result.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+                    int row = 2;
+
+                    foreach (var line in lines)
+                    {
+                        if (string.IsNullOrWhiteSpace(line)) continue;
+
+                        if (line.Contains(":"))
+                        {
+                            var parts = line.Split(new[] { ':' }, 2);
+                            worksheet.Cell(row, 1).Value = "Ошибка";
+                            worksheet.Cell(row, 2).Value = parts[1].Trim();
+                            worksheet.Cell(row, 3).Value = parts[0].Trim();
+                        }
+                        else
+                        {
+                            worksheet.Cell(row, 1).Value = line.Trim();
+                            worksheet.Range(row, 1, row, 3).Merge();
+                        }
+                        row++;
+                    }
+
+                    workbook.SaveAs(tempFilePath);
+                }
+
+                File.Copy(tempFilePath, filePath, overwrite: true);
+
+                if (File.Exists(filePath))
+                {
+                    MessageBox.Show($"Файл успешно сохранен:\n{filePath}", "Готово",
+                                  MessageBoxButtons.OK, MessageBoxIcon.Information);
+
+                    Process.Start("explorer.exe", $"/select,\"{filePath}\"");
+                }
+                else
+                {
+                    MessageBox.Show("Файл не был создан по неизвестной причине", "Ошибка",
+                                  MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+            catch (UnauthorizedAccessException)
+            {
+                MessageBox.Show("Нет прав для записи в указанную директорию", "Ошибка доступа",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка при экспорте:\n{ex.Message}", "Ошибка",
+                              MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void UpdateFilesList()
